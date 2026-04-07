@@ -2,7 +2,7 @@
 
 Google Analytics 4 데이터를 터미널에서 빠르게 조회하는 CLI 도구.
 
-여러 GA4 속성(pastekeyboard, simplespend, oneshot-note 등)의 DAU, 이벤트, 국가별 사용자, 플랫폼 통계, 실시간 데이터를 한 곳에서 확인할 수 있습니다.
+여러 GA4 속성의 DAU, 이벤트, 국가별 사용자, 플랫폼 통계, 실시간 데이터를 한 곳에서 확인할 수 있습니다.
 
 ## Install
 
@@ -28,7 +28,7 @@ ga-cli auth login
 ga-cli properties
 
 # 3. DAU 조회
-ga-cli dau pastekeyboard --days 7
+ga-cli dau my-app --days 7
 ```
 
 ## Authentication
@@ -57,19 +57,19 @@ ga-cli properties
 
 ```
 ALIAS               PROPERTY ID    DISPLAY NAME
-pastekeyboard       151869894      pastekeyboard
-simplespend         384192617      simplespend-c7dda
-oneshot-note        508319520      oneshot-note-1e533
+my-app              123456789      my-app
+my-blog             987654321      my-blog-a1b2c
+my-shop             555666777      my-shop-d3e4f
 ```
 
 ### `dau` — 일일 활성 사용자
 
 ```bash
-ga-cli dau pastekeyboard --days 7
+ga-cli dau my-app --days 7
 ```
 
 ```
-PASTEKEYBOARD - Daily Active Users (Last 7 days)
+MY-APP - Daily Active Users (Last 7 days)
 
 DATE         DAU      CHANGE
 2026-04-01   6,495
@@ -91,36 +91,36 @@ ga-cli dau --all
 
 ```
 PROPERTY              DAU (TODAY)
-pastekeyboard         6,010
-moments                 249
-simplespend              97
+my-app                6,010
+my-blog                 249
+my-shop                  97
 ```
 
 ### `events` — 이벤트 분석
 
 ```bash
-ga-cli events pastekeyboard --top 5 --days 30
+ga-cli events my-app --top 5 --days 30
 ```
 
 ```
-PASTEKEYBOARD - Top Events (Last 30 days)
+MY-APP - Top Events (Last 30 days)
 
 #   EVENT                    COUNT       USERS
-1   wordsCount               4,200,000   70,000
+1   page_view                4,200,000   70,000
 2   screen_view              4,100,000   75,000
 3   user_engagement          3,900,000   74,000
-4   ad_impression            500,000     50,000
+4   click                    500,000     50,000
 5   session_start            490,000     75,000
 ```
 
 ### `countries` — 국가별 사용자
 
 ```bash
-ga-cli countries pastekeyboard
+ga-cli countries my-app
 ```
 
 ```
-PASTEKEYBOARD - Users by Country (Last 30 days)
+MY-APP - Users by Country (Last 30 days)
 
 #   COUNTRY         USERS    SESSIONS   VIEWS/USER
 1   South Korea     4,500    45,000     25.3
@@ -131,11 +131,11 @@ PASTEKEYBOARD - Users by Country (Last 30 days)
 ### `platforms` — 플랫폼 분석
 
 ```bash
-ga-cli platforms pastekeyboard
+ga-cli platforms my-app
 ```
 
 ```
-PASTEKEYBOARD - Platform Breakdown (Last 30 days)
+MY-APP - Platform Breakdown (Last 30 days)
 
 PLATFORM    USERS    SESSIONS    ENGAGED    RATE     SESSIONS/USER
 iOS         5,200    50,000      44,000     88.0%    9.6
@@ -145,16 +145,16 @@ Android     200      800         650        81.3%    4.0
 ### `realtime` — 실시간 데이터
 
 ```bash
-ga-cli realtime pastekeyboard
+ga-cli realtime my-app
 ```
 
 ```
-PASTEKEYBOARD - Realtime
+MY-APP - Realtime
 
 Active Users: 140
 
 #   EVENT                    COUNT
-1   wordsCount               1,299
+1   page_view                1,299
 2   screen_view              1,030
 3   user_engagement          958
 ```
@@ -162,15 +162,15 @@ Active Users: 140
 ## Output Formats
 
 ```bash
-ga-cli dau pastekeyboard --format table   # 기본값
-ga-cli dau pastekeyboard --format json    # JSON (파이프용)
-ga-cli dau pastekeyboard --format csv     # CSV
+ga-cli dau my-app --format table   # 기본값
+ga-cli dau my-app --format json    # JSON (파이프용)
+ga-cli dau my-app --format csv     # CSV
 ```
 
 JSON 출력을 `jq`와 조합:
 
 ```bash
-ga-cli dau pastekeyboard --format json | jq '.[0].active_users'
+ga-cli dau my-app --format json | jq '.[0].active_users'
 ```
 
 ## Configuration
@@ -181,10 +181,9 @@ ga-cli dau pastekeyboard --format json | jq '.[0].active_users'
 credentials: /path/to/serviceAccountKey.json
 
 aliases:
-  pastekeyboard: "151869894"
-  simplespend: "384192617"
-  oneshot-note: "508319520"
-  moments: "302237145"
+  my-app: "123456789"
+  my-blog: "987654321"
+  my-shop: "555666777"
 
 defaults:
   days: 30
@@ -195,8 +194,8 @@ defaults:
 속성 별칭을 등록하면 property ID 대신 이름으로 조회할 수 있습니다:
 
 ```bash
-ga-cli dau pastekeyboard    # alias 사용
-ga-cli dau 151869894        # property ID 직접 사용
+ga-cli dau my-app      # alias 사용
+ga-cli dau 123456789   # property ID 직접 사용
 ```
 
 ## Global Flags

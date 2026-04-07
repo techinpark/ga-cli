@@ -115,10 +115,9 @@ return fmt.Errorf("invalid property ID: %s", id)
 credentials: /path/to/serviceAccountKey.json
 
 aliases:
-  pastekeyboard: "151869894"
-  simplespend: "384192617"
-  oneshot-note: "508319520"
-  moments: "302237145"
+  my-app: "123456789"
+  my-blog: "987654321"
+  my-shop: "555666777"
 
 defaults:
   days: 30

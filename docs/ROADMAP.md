@@ -45,13 +45,13 @@
 
 **해결**:
 ```bash
-ga-cli config init                          # 초기 설정 (인터랙티브)
-ga-cli config set defaults.days 14          # 기본값 변경
-ga-cli config get defaults.days             # 설정 조회
-ga-cli config alias pastekeyboard 151869894 # 별칭 등록
-ga-cli config alias --delete pastekeyboard  # 별칭 삭제
-ga-cli config list                          # 전체 설정 출력
-ga-cli config path                          # 설정 파일 경로 출력
+ga-cli config init                        # 초기 설정 (인터랙티브)
+ga-cli config set defaults.days 14        # 기본값 변경
+ga-cli config get defaults.days           # 설정 조회
+ga-cli config alias my-app 123456789      # 별칭 등록
+ga-cli config alias --delete my-app       # 별칭 삭제
+ga-cli config list                        # 전체 설정 출력
+ga-cli config path                        # 설정 파일 경로 출력
 ```
 
 **구현**:
@@ -75,8 +75,8 @@ $ ga-cli properties
 
 2. 속성 목록을 조회합니다...
    발견된 속성:
-   1. pastekeyboard (151869894)
-   2. simplespend (384192617)
+   1. my-app (123456789)
+   2. my-blog (987654321)
    ...
 
 3. 별칭을 자동 등록했습니다.
@@ -107,10 +107,10 @@ ga-cli dau --all --sort dau-asc   # DAU 오름차순
 **해결**:
 | API 에러 | 개선된 메시지 |
 |----------|---------------|
-| 403 Permission Denied | `❌ 권한이 없습니다. GA4 속성에 대한 읽기 권한을 확인하세요.` |
-| 401 Unauthenticated | `❌ 인증이 필요합니다. 'ga-cli auth login'을 실행하세요.` |
-| 429 Quota Exceeded | `❌ API 호출 한도 초과. 잠시 후 다시 시도하세요.` |
-| 404 Not Found | `❌ 속성을 찾을 수 없습니다: {propertyID}` |
+| 403 Permission Denied | `권한이 없습니다. GA4 속성에 대한 읽기 권한을 확인하세요.` |
+| 401 Unauthenticated | `인증이 필요합니다. 'ga-cli auth login'을 실행하세요.` |
+| 429 Quota Exceeded | `API 호출 한도 초과. 잠시 후 다시 시도하세요.` |
+| 404 Not Found | `속성을 찾을 수 없습니다: {propertyID}` |
 
 **구현**: `internal/client/errors.go` — 에러 래퍼
 
@@ -125,31 +125,31 @@ UX 개선과 자동화 연동.
 **설명**: 하나의 커맨드로 주요 지표 한눈에 확인.
 
 ```bash
-ga-cli report pastekeyboard
+ga-cli report my-app
 ```
 
 출력:
 ```
-PASTEKEYBOARD - Report (Last 30 days)
+MY-APP - Report (Last 30 days)
 
-📊 DAU Summary
+DAU Summary
   Today: 6,010 | Avg: 5,950 | Peak: 6,495
 
-📈 Top Events
-  1. wordsCount        4,200,000
-  2. screen_view       4,100,000
-  3. user_engagement   3,900,000
+Top Events
+  1. page_view           4,200,000
+  2. screen_view         4,100,000
+  3. user_engagement     3,900,000
 
-🌍 Top Countries
+Top Countries
   1. South Korea    4,500
   2. United States    300
   3. Japan            150
 
-📱 Platforms
+Platforms
   iOS       5,200 (88.0% engaged)
   Android     200 (81.3% engaged)
 
-⚡ Realtime: 140 users now
+Realtime: 140 users now
 ```
 
 **구현**: `cmd/report.go` — 기존 client 메서드 조합 호출
@@ -162,7 +162,7 @@ PASTEKEYBOARD - Report (Last 30 days)
 
 ```bash
 ga-cli dau --all --slack                    # 기본 웹훅으로 전송
-ga-cli report pastekeyboard --slack         # 리포트를 슬랙으로
+ga-cli report my-app --slack                # 리포트를 슬랙으로
 ga-cli config set slack.webhook "https://hooks.slack.com/services/xxx"
 ```
 
@@ -178,13 +178,13 @@ ga-cli config set slack.webhook "https://hooks.slack.com/services/xxx"
 **설명**: 두 기간의 지표를 비교.
 
 ```bash
-ga-cli compare pastekeyboard --period week    # 이번 주 vs 지난 주
-ga-cli compare pastekeyboard --period month   # 이번 달 vs 지난 달
+ga-cli compare my-app --period week    # 이번 주 vs 지난 주
+ga-cli compare my-app --period month   # 이번 달 vs 지난 달
 ```
 
 출력:
 ```
-PASTEKEYBOARD - Week over Week Comparison
+MY-APP - Week over Week Comparison
 
 METRIC          THIS WEEK    LAST WEEK    CHANGE
 DAU (avg)       5,950        6,200        -4.0%
@@ -201,8 +201,8 @@ Sessions        50,000       52,000       -3.8%
 **설명**: realtime 데이터를 N초 간격으로 갱신.
 
 ```bash
-ga-cli realtime pastekeyboard --watch        # 10초 간격 (기본)
-ga-cli realtime pastekeyboard --watch --interval 5  # 5초 간격
+ga-cli realtime my-app --watch                # 10초 간격 (기본)
+ga-cli realtime my-app --watch --interval 5   # 5초 간격
 ```
 
 **구현**: `cmd/realtime.go` — `--watch` 플래그 + 터미널 클리어 + 루프
@@ -214,8 +214,8 @@ ga-cli realtime pastekeyboard --watch --interval 5  # 5초 간격
 **설명**: cobra 내장 completion + 속성 이름 자동완성.
 
 ```bash
-ga-cli completion zsh > ~/.zfunc/_ga-cli     # zsh 자동완성 설치
-ga-cli dau paste<TAB>                         # → pastekeyboard
+ga-cli completion zsh > ~/.zfunc/_ga-cli   # zsh 자동완성 설치
+ga-cli dau my-<TAB>                         # → my-app
 ```
 
 **구현**: cobra의 `ValidArgsFunction` + config aliases에서 속성명 자동완성
@@ -227,19 +227,19 @@ ga-cli dau paste<TAB>                         # → pastekeyboard
 **설명**: 이벤트 퍼널을 정의하고 전환율 추적.
 
 ```bash
-ga-cli funnel pastekeyboard \
-  --steps "session_start,screen_view,wordsCount,ad_impression"
+ga-cli funnel my-app \
+  --steps "session_start,screen_view,page_view,click"
 ```
 
 출력:
 ```
-PASTEKEYBOARD - Funnel Analysis (Last 30 days)
+MY-APP - Funnel Analysis (Last 30 days)
 
 STEP              USERS    DROP-OFF    RATE
 session_start     75,000
 screen_view       70,000    -5,000     93.3%
-wordsCount        60,000   -10,000     85.7%
-ad_impression     50,000   -10,000     83.3%
+page_view         60,000   -10,000     85.7%
+click             50,000   -10,000     83.3%
 
 Overall: 66.7%
 ```
