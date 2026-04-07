@@ -16,16 +16,12 @@ type dataClient struct {
 }
 
 // NewDataClient creates a new Data API client.
-// If credentialsPath is empty, Application Default Credentials (ADC) are used.
-func NewDataClient(credentialsPath string) (DataClient, error) {
+// apiOpts configures authentication (e.g. WithCredentialsFile, WithTokenSource).
+// If apiOpts is empty, Application Default Credentials (ADC) are used.
+func NewDataClient(apiOpts []option.ClientOption) (DataClient, error) {
 	ctx := context.Background()
 
-	var opts []option.ClientOption
-	if credentialsPath != "" {
-		opts = append(opts, option.WithCredentialsFile(credentialsPath))
-	}
-
-	service, err := analyticsdata.NewService(ctx, opts...)
+	service, err := analyticsdata.NewService(ctx, apiOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create data service: %w", err)
 	}

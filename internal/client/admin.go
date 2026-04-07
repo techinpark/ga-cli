@@ -16,18 +16,14 @@ type adminClient struct {
 }
 
 // NewAdminClient creates a new Admin API client.
-// If credentialsPath is empty, Application Default Credentials (ADC) are used.
+// apiOpts configures authentication (e.g. WithCredentialsFile, WithTokenSource).
+// If apiOpts is empty, Application Default Credentials (ADC) are used.
 // aliases is a map from alias name to property ID; it is reversed internally
 // so properties can be looked up by ID.
-func NewAdminClient(credentialsPath string, aliases map[string]string) (AdminClient, error) {
+func NewAdminClient(apiOpts []option.ClientOption, aliases map[string]string) (AdminClient, error) {
 	ctx := context.Background()
 
-	var opts []option.ClientOption
-	if credentialsPath != "" {
-		opts = append(opts, option.WithCredentialsFile(credentialsPath))
-	}
-
-	service, err := analyticsadmin.NewService(ctx, opts...)
+	service, err := analyticsadmin.NewService(ctx, apiOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create admin service: %w", err)
 	}

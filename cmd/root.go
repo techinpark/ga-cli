@@ -5,12 +5,14 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/techinpark/ga-cli/internal/auth"
 	"github.com/techinpark/ga-cli/internal/client"
 	"github.com/techinpark/ga-cli/internal/config"
 	"github.com/techinpark/ga-cli/internal/formatter"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"google.golang.org/api/option"
 )
 
 var (
@@ -44,6 +46,11 @@ func Execute(version string) error {
 
 	var deps *Dependencies
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		// auth 서브커맨드는 API 클라이언트 불필요
+		if isAuthCommand(cmd) {
+			return nil
+		}
+
 		cfg, err := config.Load()
 		if err != nil {
 			cfg = &config.Config{}
@@ -55,14 +62,29 @@ func Execute(version string) error {
 			return err
 		}
 
-		credPath := resolveCredentials(cmd, cfg)
+		// 인증 옵션 결정 (우선순위: Service Account > OAuth2 > ADC)
+		var apiOpts []option.ClientOption
 
-		adminClient, err := client.NewAdminClient(credPath, cfg.Aliases)
+		credPath := resolveCredentials(cmd, cfg)
+		if credPath != "" {
+			apiOpts = append(apiOpts, option.WithCredentialsFile(credPath))
+		} else {
+			authMgr, authErr := auth.NewManager()
+			if authErr == nil && authMgr.IsLoggedIn() {
+				tokenSource, tsErr := authMgr.GetTokenSource(cmd.Context())
+				if tsErr == nil {
+					apiOpts = append(apiOpts, option.WithTokenSource(tokenSource))
+				}
+			}
+			// apiOpts가 비어있으면 ADC fallback
+		}
+
+		adminClient, err := client.NewAdminClient(apiOpts, cfg.Aliases)
 		if err != nil {
 			return fmt.Errorf("failed to create admin client: %w", err)
 		}
 
-		dataClient, err := client.NewDataClient(credPath)
+		dataClient, err := client.NewDataClient(apiOpts)
 		if err != nil {
 			return fmt.Errorf("failed to create data client: %w", err)
 		}
@@ -81,6 +103,7 @@ func Execute(version string) error {
 		return deps
 	}
 
+	rootCmd.AddCommand(newAuthCmd())
 	rootCmd.AddCommand(newPropertiesCmd(getDeps))
 	rootCmd.AddCommand(newDAUCmd(getDeps))
 	rootCmd.AddCommand(newEventsCmd(getDeps))
@@ -91,7 +114,9 @@ func Execute(version string) error {
 	return rootCmd.Execute()
 }
 
-// resolveCredentials determines the credentials file path from flag, config, or env.
+// resolveCredentials determines the Service Account credentials file path
+// from flag, config, or env. Returns empty string if none is configured,
+// allowing OAuth2 or ADC fallback.
 func resolveCredentials(cmd *cobra.Command, cfg *config.Config) string {
 	if f := cmd.Flag("credentials"); f != nil && f.Changed {
 		return f.Value.String()
@@ -105,11 +130,17 @@ func resolveCredentials(cmd *cobra.Command, cfg *config.Config) string {
 		return envPath
 	}
 
-	if envPath := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"); envPath != "" {
-		return envPath
-	}
-
 	return ""
+}
+
+// isAuthCommand checks if the command is part of the auth subcommand tree.
+func isAuthCommand(cmd *cobra.Command) bool {
+	for c := cmd; c != nil; c = c.Parent() {
+		if c.Name() == "auth" {
+			return true
+		}
+	}
+	return false
 }
 
 func initConfig() {
