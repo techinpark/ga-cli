@@ -9,17 +9,28 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/analyticsadmin/v1beta"
 	"google.golang.org/api/analyticsdata/v1beta"
+	"gopkg.in/yaml.v3"
 )
 
 // Scopes defines the required GA4 OAuth2 scopes.
 var Scopes = []string{
 	analyticsdata.AnalyticsReadonlyScope,
 	analyticsadmin.AnalyticsReadonlyScope,
+}
+
+const defaultAccountName = "default"
+
+// AccountInfo represents a registered account and its status.
+type AccountInfo struct {
+	Name     string
+	IsActive bool
+	Valid    bool // 토큰 유효 여부
 }
 
 // Manager handles OAuth2 authentication for the CLI.
@@ -40,9 +51,20 @@ func NewManager() (*Manager, error) {
 	return &Manager{configDir: configDir}, nil
 }
 
-// TokenPath returns the path to the saved token file.
+// AccountsDir returns the accounts directory path.
+func (m *Manager) AccountsDir() string {
+	return filepath.Join(m.configDir, "accounts")
+}
+
+// TokenPathForAccount returns token path for a specific account.
+func (m *Manager) TokenPathForAccount(account string) string {
+	return filepath.Join(m.AccountsDir(), account+".json")
+}
+
+// TokenPath returns the active account's token path.
+// For backward compatibility with existing callers.
 func (m *Manager) TokenPath() string {
-	return filepath.Join(m.configDir, "token.json")
+	return m.TokenPathForAccount(m.ActiveAccount())
 }
 
 // CredentialsPath returns the path to the OAuth client credentials file.
@@ -50,13 +72,16 @@ func (m *Manager) CredentialsPath() string {
 	return filepath.Join(m.configDir, "credentials.json")
 }
 
-// Login performs OAuth2 browser-based login flow.
-// 1. 로컬 HTTP 서버 시작 (랜덤 포트)
-// 2. 브라우저에서 Google OAuth 동의 화면 열기
-// 3. 콜백으로 authorization code 수신
-// 4. code를 token으로 교환
-// 5. ~/.ga-cli/token.json에 저장
-func (m *Manager) Login(ctx context.Context) error {
+// Login performs OAuth2 browser-based login flow for the specified account.
+func (m *Manager) Login(ctx context.Context, account string) error {
+	if account == "" {
+		account = defaultAccountName
+	}
+
+	if err := os.MkdirAll(m.AccountsDir(), 0700); err != nil {
+		return fmt.Errorf("failed to create accounts directory: %w", err)
+	}
+
 	oauthConfig, err := m.loadOAuthConfig()
 	if err != nil {
 		return err
@@ -119,41 +144,186 @@ func (m *Manager) Login(ctx context.Context) error {
 		return fmt.Errorf("failed to exchange token: %w", err)
 	}
 
-	return m.saveToken(token)
+	return m.saveTokenForAccount(token, account)
 }
 
-// GetTokenSource returns a token source for authenticated API calls.
-// The returned TokenSource automatically handles token refresh.
+// GetTokenSource returns a token source for the active account.
 func (m *Manager) GetTokenSource(ctx context.Context) (oauth2.TokenSource, error) {
+	return m.GetTokenSourceForAccount(ctx, m.ActiveAccount())
+}
+
+// GetTokenSourceForAccount returns a token source for a specific account.
+func (m *Manager) GetTokenSourceForAccount(ctx context.Context, account string) (oauth2.TokenSource, error) {
 	oauthConfig, err := m.loadOAuthConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	token, err := m.loadToken()
+	token, err := m.loadTokenForAccount(account)
 	if err != nil {
-		return nil, fmt.Errorf("not logged in, run 'ga auth login' first: %w", err)
+		return nil, fmt.Errorf("not logged in as %q, run 'ga auth login --account %s' first: %w", account, account, err)
 	}
 
 	return oauthConfig.TokenSource(ctx, token), nil
 }
 
-// IsLoggedIn checks if a valid token exists.
+// IsLoggedIn checks if the active account has a valid token.
 func (m *Manager) IsLoggedIn() bool {
-	token, err := m.loadToken()
+	return m.IsLoggedInAs(m.ActiveAccount())
+}
+
+// IsLoggedInAs checks if a specific account has a valid token.
+func (m *Manager) IsLoggedInAs(account string) bool {
+	token, err := m.loadTokenForAccount(account)
 	if err != nil {
 		return false
 	}
 	return token.Valid() || token.RefreshToken != ""
 }
 
-// Logout removes the saved token.
+// Logout removes the active account's token.
 func (m *Manager) Logout() error {
-	path := m.TokenPath()
+	return m.LogoutAccount(m.ActiveAccount())
+}
+
+// LogoutAccount removes a specific account's token.
+func (m *Manager) LogoutAccount(account string) error {
+	path := m.TokenPathForAccount(account)
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return nil
 	}
-	return os.Remove(path)
+	if err := os.Remove(path); err != nil {
+		return fmt.Errorf("failed to remove token for account %q: %w", account, err)
+	}
+
+	// 활성 계정을 삭제한 경우 default로 전환
+	if m.ActiveAccount() == account {
+		_ = m.SetActiveAccount(defaultAccountName)
+	}
+	return nil
+}
+
+// LogoutAll removes all account tokens.
+func (m *Manager) LogoutAll() error {
+	accountsDir := m.AccountsDir()
+	if _, err := os.Stat(accountsDir); os.IsNotExist(err) {
+		return nil
+	}
+
+	entries, err := os.ReadDir(accountsDir)
+	if err != nil {
+		return fmt.Errorf("failed to read accounts directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		if err := os.Remove(filepath.Join(accountsDir, entry.Name())); err != nil {
+			return fmt.Errorf("failed to remove %s: %w", entry.Name(), err)
+		}
+	}
+
+	_ = m.SetActiveAccount(defaultAccountName)
+	return nil
+}
+
+// ListAccounts returns all registered accounts.
+func (m *Manager) ListAccounts() ([]AccountInfo, error) {
+	accountsDir := m.AccountsDir()
+	if _, err := os.Stat(accountsDir); os.IsNotExist(err) {
+		return nil, nil
+	}
+
+	entries, err := os.ReadDir(accountsDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read accounts directory: %w", err)
+	}
+
+	active := m.ActiveAccount()
+	var accounts []AccountInfo
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		name := strings.TrimSuffix(entry.Name(), ".json")
+		token, err := m.loadTokenForAccount(name)
+		valid := err == nil && (token.Valid() || token.RefreshToken != "")
+
+		accounts = append(accounts, AccountInfo{
+			Name:     name,
+			IsActive: name == active,
+			Valid:    valid,
+		})
+	}
+
+	return accounts, nil
+}
+
+// ActiveAccount reads the active_account from config.yaml.
+func (m *Manager) ActiveAccount() string {
+	configPath := filepath.Join(m.configDir, "config.yaml")
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return defaultAccountName
+	}
+
+	var cfg map[string]interface{}
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return defaultAccountName
+	}
+
+	if account, ok := cfg["active_account"].(string); ok && account != "" {
+		return account
+	}
+	return defaultAccountName
+}
+
+// SetActiveAccount writes the active_account to config.yaml.
+func (m *Manager) SetActiveAccount(account string) error {
+	configPath := filepath.Join(m.configDir, "config.yaml")
+
+	data, _ := os.ReadFile(configPath)
+
+	var cfg map[string]interface{}
+	if err := yaml.Unmarshal(data, &cfg); err != nil || cfg == nil {
+		cfg = make(map[string]interface{})
+	}
+
+	cfg["active_account"] = account
+
+	out, err := yaml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	return os.WriteFile(configPath, out, 0600)
+}
+
+// MigrateTokenIfNeeded moves legacy token.json to accounts/default.json.
+func (m *Manager) MigrateTokenIfNeeded() error {
+	oldPath := filepath.Join(m.configDir, "token.json")
+	newPath := m.TokenPathForAccount(defaultAccountName)
+
+	if _, err := os.Stat(oldPath); os.IsNotExist(err) {
+		return nil
+	}
+
+	if _, err := os.Stat(newPath); err == nil {
+		// accounts/default.json already exists, skip migration
+		return nil
+	}
+
+	if err := os.MkdirAll(m.AccountsDir(), 0700); err != nil {
+		return fmt.Errorf("failed to create accounts directory: %w", err)
+	}
+
+	if err := os.Rename(oldPath, newPath); err != nil {
+		return fmt.Errorf("failed to migrate token: %w", err)
+	}
+
+	return nil
 }
 
 // HasCredentials checks if OAuth credentials file exists.
@@ -176,8 +346,8 @@ func (m *Manager) loadOAuthConfig() (*oauth2.Config, error) {
 	return config, nil
 }
 
-func (m *Manager) saveToken(token *oauth2.Token) error {
-	path := m.TokenPath()
+func (m *Manager) saveTokenForAccount(token *oauth2.Token, account string) error {
+	path := m.TokenPathForAccount(account)
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("failed to create token file: %w", err)
@@ -187,8 +357,8 @@ func (m *Manager) saveToken(token *oauth2.Token) error {
 	return json.NewEncoder(f).Encode(token)
 }
 
-func (m *Manager) loadToken() (*oauth2.Token, error) {
-	data, err := os.ReadFile(m.TokenPath())
+func (m *Manager) loadTokenForAccount(account string) (*oauth2.Token, error) {
+	data, err := os.ReadFile(m.TokenPathForAccount(account))
 	if err != nil {
 		return nil, err
 	}

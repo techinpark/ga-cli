@@ -19,6 +19,7 @@ var (
 	cfgFile     string
 	credentials string
 	format      string
+	account     string
 )
 
 func newRootCmd(version string) *cobra.Command {
@@ -32,6 +33,7 @@ func newRootCmd(version string) *cobra.Command {
 	cmd.PersistentFlags().StringVar(&cfgFile, "config", "", "설정 파일 경로 (기본값: ~/.ga-cli/config.yaml)")
 	cmd.PersistentFlags().StringVarP(&credentials, "credentials", "c", "", "서비스 계정 키 경로")
 	cmd.PersistentFlags().StringVarP(&format, "format", "f", "table", "출력 형식 (table, json, csv)")
+	cmd.PersistentFlags().StringVar(&account, "account", "", "사용할 계정 (기본: 활성 계정)")
 
 	return cmd
 }
@@ -70,10 +72,19 @@ func Execute(version string) error {
 			apiOpts = append(apiOpts, option.WithCredentialsFile(credPath))
 		} else {
 			authMgr, authErr := auth.NewManager()
-			if authErr == nil && authMgr.IsLoggedIn() {
-				tokenSource, tsErr := authMgr.GetTokenSource(cmd.Context())
-				if tsErr == nil {
-					apiOpts = append(apiOpts, option.WithTokenSource(tokenSource))
+			if authErr == nil {
+				_ = authMgr.MigrateTokenIfNeeded()
+
+				accountName := account // --account 글로벌 플래그
+				if accountName == "" {
+					accountName = authMgr.ActiveAccount()
+				}
+
+				if authMgr.IsLoggedInAs(accountName) {
+					tokenSource, tsErr := authMgr.GetTokenSourceForAccount(cmd.Context(), accountName)
+					if tsErr == nil {
+						apiOpts = append(apiOpts, option.WithTokenSource(tokenSource))
+					}
 				}
 			}
 			// apiOpts가 비어있으면 ADC fallback
