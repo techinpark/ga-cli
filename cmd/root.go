@@ -121,6 +121,7 @@ func Execute(version string) error {
 	rootCmd.AddCommand(newCountriesCmd(getDeps))
 	rootCmd.AddCommand(newPlatformsCmd(getDeps))
 	rootCmd.AddCommand(newRealtimeCmd(getDeps))
+	rootCmd.AddCommand(newReportCmd(getDeps))
 
 	return rootCmd.Execute()
 }
