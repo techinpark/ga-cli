@@ -5,6 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/techinpark/ga-cli/internal/client"
+	"github.com/techinpark/ga-cli/internal/config"
+	"github.com/techinpark/ga-cli/internal/formatter"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -30,14 +34,82 @@ func newRootCmd(version string) *cobra.Command {
 	return cmd
 }
 
+// Execute is the main entry point for the CLI.
 func Execute(version string) error {
-	rootCmd := newRootCmd(version)
-
 	cobra.OnInitialize(func() {
 		initConfig()
 	})
 
+	rootCmd := newRootCmd(version)
+
+	var deps *Dependencies
+	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		cfg, err := config.Load()
+		if err != nil {
+			cfg = &config.Config{}
+		}
+
+		f, _ := cmd.Flags().GetString("format")
+		ft, err := formatter.ParseFormat(f)
+		if err != nil {
+			return err
+		}
+
+		credPath := resolveCredentials(cmd, cfg)
+
+		adminClient, err := client.NewAdminClient(credPath, cfg.Aliases)
+		if err != nil {
+			return fmt.Errorf("failed to create admin client: %w", err)
+		}
+
+		dataClient, err := client.NewDataClient(credPath)
+		if err != nil {
+			return fmt.Errorf("failed to create data client: %w", err)
+		}
+
+		deps = &Dependencies{
+			Admin:     adminClient,
+			Data:      dataClient,
+			Resolver:  client.NewPropertyResolver(cfg.Aliases),
+			Formatter: formatter.New(ft),
+			Config:    cfg,
+		}
+		return nil
+	}
+
+	getDeps := func() *Dependencies {
+		return deps
+	}
+
+	rootCmd.AddCommand(newPropertiesCmd(getDeps))
+	rootCmd.AddCommand(newDAUCmd(getDeps))
+	rootCmd.AddCommand(newEventsCmd(getDeps))
+	rootCmd.AddCommand(newCountriesCmd(getDeps))
+	rootCmd.AddCommand(newPlatformsCmd(getDeps))
+	rootCmd.AddCommand(newRealtimeCmd(getDeps))
+
 	return rootCmd.Execute()
+}
+
+// resolveCredentials determines the credentials file path from flag, config, or env.
+func resolveCredentials(cmd *cobra.Command, cfg *config.Config) string {
+	if f := cmd.Flag("credentials"); f != nil && f.Changed {
+		return f.Value.String()
+	}
+
+	if cfg.Credentials != "" {
+		return cfg.Credentials
+	}
+
+	if envPath := os.Getenv("GA_SERVICE_ACCOUNT_KEY"); envPath != "" {
+		return envPath
+	}
+
+	if envPath := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"); envPath != "" {
+		return envPath
+	}
+
+	return ""
 }
 
 func initConfig() {
