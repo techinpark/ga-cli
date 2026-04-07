@@ -1,0 +1,21 @@
+build/
+coverage.out
+coverage.html
+*.env
+.env
+.env.*
+
+# Credentials (never commit)
+*serviceAccountKey*.json
+*credentials*.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
