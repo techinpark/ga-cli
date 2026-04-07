@@ -333,17 +333,28 @@ func (m *Manager) HasCredentials() bool {
 }
 
 func (m *Manager) loadOAuthConfig() (*oauth2.Config, error) {
+	// 1. ~/.ga-cli/credentials.json이 있으면 우선 사용
 	data, err := os.ReadFile(m.CredentialsPath())
-	if err != nil {
-		return nil, fmt.Errorf("OAuth credentials not found at %s\nDownload from Google Cloud Console > APIs & Services > Credentials > OAuth 2.0 Client IDs > Download JSON", m.CredentialsPath())
+	if err == nil {
+		config, err := google.ConfigFromJSON(data, Scopes...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse credentials: %w", err)
+		}
+		return config, nil
 	}
 
-	config, err := google.ConfigFromJSON(data, Scopes...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse credentials: %w", err)
+	// 2. 내장 credentials 사용 (brew install 등 배포 바이너리)
+	if hasEmbeddedCredentials() {
+		return embeddedOAuthConfig(Scopes), nil
 	}
 
-	return config, nil
+	return nil, fmt.Errorf("OAuth credentials not available\n\n" +
+		"Homebrew로 설치한 경우 최신 버전으로 업데이트하세요:\n" +
+		"  brew upgrade ga-cli\n\n" +
+		"소스에서 빌드한 경우 다음 중 하나를 선택하세요:\n" +
+		"  1. credentials.json 직접 제공: %s\n" +
+		"  2. ADC 사용: gcloud auth application-default login",
+		m.CredentialsPath())
 }
 
 func (m *Manager) saveTokenForAccount(token *oauth2.Token, account string) error {

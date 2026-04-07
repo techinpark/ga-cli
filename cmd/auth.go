@@ -38,10 +38,6 @@ func newAuthLoginCmd() *cobra.Command {
 				return fmt.Errorf("failed to migrate token: %w", err)
 			}
 
-			if !mgr.HasCredentials() {
-				return fmt.Errorf("OAuth credentials not found\n\n1. Google Cloud Console에서 OAuth 2.0 Client ID를 생성하세요\n2. 'Desktop App' 유형으로 생성\n3. JSON 다운로드 후 %s에 저장하세요", mgr.CredentialsPath())
-			}
-
 			if err := mgr.Login(cmd.Context(), account); err != nil {
 				return err
 			}

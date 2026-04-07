@@ -1,7 +1,9 @@
 BINARY_NAME=ga-cli
 VERSION?=0.1.0
 BUILD_DIR=./build
-LDFLAGS=-ldflags "-X main.version=$(VERSION)"
+OAUTH_CLIENT_ID?=
+OAUTH_CLIENT_SECRET?=
+LDFLAGS=-ldflags "-X main.version=$(VERSION) -X github.com/techinpark/ga-cli/internal/auth.oauthClientID=$(OAUTH_CLIENT_ID) -X github.com/techinpark/ga-cli/internal/auth.oauthClientSecret=$(OAUTH_CLIENT_SECRET)"
 
 .PHONY: build test lint run install clean check test-coverage test-race fmt vet help
 
