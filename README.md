@@ -1,12 +1,12 @@
 # ga-cli
 
-Google Analytics 4 데이터를 터미널에서 빠르게 조회하는 CLI 도구.
+A command-line tool to query Google Analytics 4 data from the terminal.
 
-여러 GA4 속성의 DAU, 이벤트, 국가별 사용자, 플랫폼 통계, 실시간 데이터를 한 곳에서 확인할 수 있습니다.
+View DAU, events, countries, platforms, realtime stats, and comparison reports across multiple GA4 properties — all without leaving your terminal.
 
 ## Install
 
-### Homebrew (권장)
+### Homebrew
 
 ```bash
 brew tap techinpark/tap
@@ -19,7 +19,7 @@ brew install ga-cli
 go install github.com/techinpark/ga-cli@latest
 ```
 
-### 소스에서 빌드
+### Build from Source
 
 ```bash
 git clone https://github.com/techinpark/ga-cli.git
@@ -30,50 +30,50 @@ make install
 ## Quick Start
 
 ```bash
-# 1. Google 계정 로그인
-ga-cli auth login
+# 1. Log in with your Google account
+ga auth login
 
-# 2. 속성 목록 확인
-ga-cli properties
+# 2. List your GA4 properties
+ga properties
 
-# 3. DAU 조회
-ga-cli dau my-app --days 7
+# 3. Check DAU
+ga dau my-app --days 7
 ```
 
 ## Authentication
 
 ```bash
-ga-cli auth login     # 브라우저에서 Google 계정 로그인 (권장)
-ga-cli auth status    # 인증 상태 확인
-ga-cli auth logout    # 로그아웃
+ga auth login      # Browser-based Google login (recommended)
+ga auth status     # Check auth status
+ga auth logout     # Log out
 ```
 
-여러 Google 계정을 등록하고 전환할 수 있습니다:
+Multiple accounts are supported:
 
 ```bash
-ga-cli auth login --account work       # 회사 계정 추가
-ga-cli auth login --account personal   # 개인 계정 추가
-ga-cli auth list                       # 등록된 계정 목록
-ga-cli auth switch work                # 활성 계정 전환
+ga auth login --account work       # Add work account
+ga auth login --account personal   # Add personal account
+ga auth list                       # List registered accounts
+ga auth switch work                # Switch active account
 ```
 
-### 인증 우선순위
+### Auth Priority
 
-| 순위 | 방식 | 설명 |
-|------|------|------|
-| 1 | Service Account | `--credentials path/to/key.json` 또는 config.yaml |
-| 2 | OAuth2 (권장) | `ga-cli auth login` → 브라우저 로그인 |
+| Priority | Method | Description |
+|----------|--------|-------------|
+| 1 | Service Account | `--credentials path/to/key.json` or config.yaml |
+| 2 | OAuth2 (recommended) | `ga auth login` → browser login |
 | 3 | ADC | `gcloud auth application-default login` |
 
-> **소스에서 직접 빌드한 경우**, OAuth2 credentials가 내장되어 있지 않습니다.
-> `~/.ga-cli/credentials.json`을 직접 제공하거나 ADC를 사용하세요.
+> **Building from source**: OAuth2 credentials are not embedded by default.
+> Provide `~/.ga-cli/credentials.json` or use ADC.
 
 ## Commands
 
-### `properties` — 속성 목록
+### `properties` — List GA4 Properties
 
 ```bash
-ga-cli properties
+ga properties
 ```
 
 ```
@@ -83,10 +83,10 @@ my-blog             987654321      my-blog-a1b2c
 my-shop             555666777      my-shop-d3e4f
 ```
 
-### `dau` — 일일 활성 사용자
+### `dau` — Daily Active Users
 
 ```bash
-ga-cli dau my-app --days 7
+ga dau my-app --days 7
 ```
 
 ```
@@ -104,10 +104,12 @@ DATE         DAU      CHANGE
 Avg: 5,950
 ```
 
-전체 속성 한눈에:
+All properties at a glance:
 
 ```bash
-ga-cli dau --all
+ga dau --all                  # sorted by DAU descending (default)
+ga dau --all --sort name      # sorted by name
+ga dau --all --sort dau-asc   # sorted by DAU ascending
 ```
 
 ```
@@ -117,10 +119,10 @@ my-blog                 249
 my-shop                  97
 ```
 
-### `events` — 이벤트 분석
+### `events` — Event Analysis
 
 ```bash
-ga-cli events my-app --top 5 --days 30
+ga events my-app --top 5 --days 30
 ```
 
 ```
@@ -134,10 +136,10 @@ MY-APP - Top Events (Last 30 days)
 5   session_start            490,000     75,000
 ```
 
-### `countries` — 국가별 사용자
+### `countries` — Users by Country
 
 ```bash
-ga-cli countries my-app
+ga countries my-app
 ```
 
 ```
@@ -149,10 +151,10 @@ MY-APP - Users by Country (Last 30 days)
 3   Japan           150      600        12.1
 ```
 
-### `platforms` — 플랫폼 분석
+### `platforms` — Platform Breakdown
 
 ```bash
-ga-cli platforms my-app
+ga platforms my-app
 ```
 
 ```
@@ -163,10 +165,10 @@ iOS         5,200    50,000      44,000     88.0%    9.6
 Android     200      800         650        81.3%    4.0
 ```
 
-### `realtime` — 실시간 데이터
+### `realtime` — Realtime Data
 
 ```bash
-ga-cli realtime my-app
+ga realtime my-app
 ```
 
 ```
@@ -180,18 +182,57 @@ Active Users: 140
 3   user_engagement          958
 ```
 
+### `report` — Aggregated Reports
+
+```bash
+ga report daily my-app       # DAU 7d + events + platforms + realtime
+ga report weekly my-app      # DAU 14d + events + countries + platforms
+ga report compare my-app     # Day-over-day + week-over-week comparison
+ga report daily --all        # All properties
+```
+
+**Compare report output:**
+
+```
+MY-APP - Comparison Report
+
+Day over Day (Today vs Yesterday)
+METRIC    TODAY      YESTERDAY  CHANGE
+DAU       6,010      6,495      -7.5%
+Events    4,200,000  4,500,000  -6.7%
+Sessions  50,000     52,000     -3.8%
+
+Week over Week (This Week vs Last Week)
+METRIC    THIS WEEK   LAST WEEK   CHANGE
+DAU       5,950       6,200       -4.0%
+Events    29,400,000  31,500,000  -6.7%
+Sessions  350,000     364,000     -3.8%
+```
+
+### `config` — Configuration Management
+
+```bash
+ga config list                        # Show all settings
+ga config get defaults.days           # Get a value
+ga config set defaults.days 14        # Set a value
+ga config alias my-app 123456789      # Register alias
+ga config alias --delete my-app       # Remove alias
+ga config path                        # Show config file path
+```
+
 ## Output Formats
 
 ```bash
-ga-cli dau my-app --format table   # 기본값
-ga-cli dau my-app --format json    # JSON (파이프용)
-ga-cli dau my-app --format csv     # CSV
+ga dau my-app --format table   # default
+ga dau my-app --format json    # JSON (pipe-friendly)
+ga dau my-app --format csv     # CSV
 ```
 
-JSON 출력을 `jq`와 조합:
+Combine JSON output with `jq`:
 
 ```bash
-ga-cli dau my-app --format json | jq '.[0].active_users'
+ga dau my-app --format json | jq '.[0].active_users'
+ga report compare my-app --format json | jq '.day_over_day'
 ```
 
 ## Configuration
@@ -212,20 +253,31 @@ defaults:
   output: table
 ```
 
-속성 별칭을 등록하면 property ID 대신 이름으로 조회할 수 있습니다:
+Use aliases instead of property IDs:
 
 ```bash
-ga-cli dau my-app      # alias 사용
-ga-cli dau 123456789   # property ID 직접 사용
+ga dau my-app      # alias
+ga dau 123456789   # property ID
 ```
 
 ## Global Flags
 
-| 플래그 | 단축 | 기본값 | 설명 |
-|--------|------|--------|------|
-| `--credentials` | `-c` | config.yaml | 서비스 계정 키 경로 |
-| `--format` | `-f` | table | 출력 형식 (table/json/csv) |
-| `--config` | | ~/.ga-cli/config.yaml | 설정 파일 경로 |
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--credentials` | `-c` | config.yaml | Service account key path |
+| `--format` | `-f` | table | Output format (table/json/csv) |
+| `--config` | | ~/.ga-cli/config.yaml | Config file path |
+| `--account` | | active | Account to use |
+
+## Development
+
+```bash
+make build           # Build binary
+make test            # Run tests
+make test-coverage   # Coverage report
+make check           # build + vet + test + lint
+make run ARGS="dau my-app --days 7"
+```
 
 ## Tech Stack
 
