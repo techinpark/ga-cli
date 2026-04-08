@@ -55,7 +55,7 @@ func (c *dataClient) GetDAU(ctx context.Context, propertyID string, days int) ([
 
 	resp, err := c.service.Properties.RunReport(propertyResource(propertyID), req).Context(ctx).Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to run DAU report: %w", err)
+		return nil, WrapAPIError("failed to get DAU", err)
 	}
 
 	records := make([]model.DAURecord, 0, len(resp.Rows))
@@ -113,7 +113,7 @@ func (c *dataClient) GetEvents(ctx context.Context, propertyID string, days int,
 
 	resp, err := c.service.Properties.RunReport(propertyResource(propertyID), req).Context(ctx).Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to run events report: %w", err)
+		return nil, WrapAPIError("failed to get events", err)
 	}
 
 	records := make([]model.EventRecord, 0, len(resp.Rows))
@@ -164,7 +164,7 @@ func (c *dataClient) GetCountries(ctx context.Context, propertyID string, days i
 
 	resp, err := c.service.Properties.RunReport(propertyResource(propertyID), req).Context(ctx).Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to run countries report: %w", err)
+		return nil, WrapAPIError("failed to get countries", err)
 	}
 
 	records := make([]model.CountryRecord, 0, len(resp.Rows))
@@ -226,7 +226,7 @@ func (c *dataClient) GetPlatforms(ctx context.Context, propertyID string, days i
 
 	resp, err := c.service.Properties.RunReport(propertyResource(propertyID), req).Context(ctx).Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to run platforms report: %w", err)
+		return nil, WrapAPIError("failed to get platforms", err)
 	}
 
 	records := make([]model.PlatformRecord, 0, len(resp.Rows))
@@ -283,7 +283,7 @@ func (c *dataClient) GetRealtime(ctx context.Context, propertyID string) (*model
 
 	resp, err := c.service.Properties.RunRealtimeReport(propertyResource(propertyID), req).Context(ctx).Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to run realtime report: %w", err)
+		return nil, WrapAPIError("failed to get realtime", err)
 	}
 
 	report := &model.RealtimeReport{}
@@ -327,7 +327,7 @@ func (c *dataClient) GetMetricsSummary(ctx context.Context, propertyID string, s
 
 	resp, err := c.service.Properties.RunReport(propertyResource(propertyID), req).Context(ctx).Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to run metrics summary report: %w", err)
+		return nil, WrapAPIError("failed to get metrics summary", err)
 	}
 
 	summary := &model.MetricsSummary{}

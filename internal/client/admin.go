@@ -53,7 +53,7 @@ func (c *adminClient) ListProperties(ctx context.Context) ([]model.Property, err
 
 		resp, err := call.Do()
 		if err != nil {
-			return nil, fmt.Errorf("failed to list account summaries: %w", err)
+			return nil, WrapAPIError("failed to list properties", err)
 		}
 
 		for _, account := range resp.AccountSummaries {

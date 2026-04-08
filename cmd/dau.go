@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/techinpark/ga-cli/internal/model"
@@ -12,8 +13,9 @@ import (
 
 func newDAUCmd(deps func() *Dependencies) *cobra.Command {
 	var (
-		days int
-		all  bool
+		days    int
+		all     bool
+		sortBy  string
 	)
 
 	cmd := &cobra.Command{
@@ -37,7 +39,7 @@ func newDAUCmd(deps func() *Dependencies) *cobra.Command {
 			ctx := cmd.Context()
 
 			if all {
-				return runDAUAll(cmd, d)
+				return runDAUAll(cmd, d, sortBy)
 			}
 
 			propertyID, err := d.Resolver.Resolve(args[0])
@@ -57,11 +59,12 @@ func newDAUCmd(deps func() *Dependencies) *cobra.Command {
 
 	cmd.Flags().IntVarP(&days, "days", "d", 30, "조회 기간 (일)")
 	cmd.Flags().BoolVar(&all, "all", false, "모든 속성의 오늘 DAU 조회")
+	cmd.Flags().StringVar(&sortBy, "sort", "dau", "정렬 기준 (dau, name, dau-asc)")
 
 	return cmd
 }
 
-func runDAUAll(cmd *cobra.Command, d *Dependencies) error {
+func runDAUAll(cmd *cobra.Command, d *Dependencies, sortBy string) error {
 	ctx := cmd.Context()
 	aliases := d.Config.Aliases
 
@@ -69,7 +72,8 @@ func runDAUAll(cmd *cobra.Command, d *Dependencies) error {
 	for name, id := range aliases {
 		records, err := d.Data.GetDAU(ctx, id, 1)
 		if err != nil {
-			return fmt.Errorf("failed to get DAU for %s: %w", name, err)
+			fmt.Fprintf(os.Stderr, "warning: %s skipped: %v\n", name, err)
+			continue
 		}
 
 		activeUsers := 0
@@ -84,7 +88,26 @@ func runDAUAll(cmd *cobra.Command, d *Dependencies) error {
 		})
 	}
 
+	sortDAUSummaries(summaries, sortBy)
+
 	return d.Formatter.FormatDAUSummary(os.Stdout, summaries)
+}
+
+func sortDAUSummaries(summaries []model.DAUSummary, sortBy string) {
+	switch sortBy {
+	case "name":
+		sort.Slice(summaries, func(i, j int) bool {
+			return summaries[i].PropertyName < summaries[j].PropertyName
+		})
+	case "dau-asc":
+		sort.Slice(summaries, func(i, j int) bool {
+			return summaries[i].ActiveUsers < summaries[j].ActiveUsers
+		})
+	default: // "dau" — DAU 내림차순
+		sort.Slice(summaries, func(i, j int) bool {
+			return summaries[i].ActiveUsers > summaries[j].ActiveUsers
+		})
+	}
 }
 
 func propertyTitle(nameOrID string) string {

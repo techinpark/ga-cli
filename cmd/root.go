@@ -49,7 +49,7 @@ func Execute(version string) error {
 	var deps *Dependencies
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		// auth 서브커맨드는 API 클라이언트 불필요
-		if isAuthCommand(cmd) {
+		if isAuthCommand(cmd) || isConfigCommand(cmd) {
 			return nil
 		}
 
@@ -115,6 +115,7 @@ func Execute(version string) error {
 	}
 
 	rootCmd.AddCommand(newAuthCmd())
+	rootCmd.AddCommand(newConfigCmd())
 	rootCmd.AddCommand(newPropertiesCmd(getDeps))
 	rootCmd.AddCommand(newDAUCmd(getDeps))
 	rootCmd.AddCommand(newEventsCmd(getDeps))
@@ -149,6 +150,15 @@ func resolveCredentials(cmd *cobra.Command, cfg *config.Config) string {
 func isAuthCommand(cmd *cobra.Command) bool {
 	for c := cmd; c != nil; c = c.Parent() {
 		if c.Name() == "auth" {
+			return true
+		}
+	}
+	return false
+}
+
+func isConfigCommand(cmd *cobra.Command) bool {
+	for c := cmd; c != nil; c = c.Parent() {
+		if c.Name() == "config" {
 			return true
 		}
 	}
