@@ -301,6 +301,30 @@ func (m *Manager) SetActiveAccount(account string) error {
 	return os.WriteFile(configPath, out, 0600)
 }
 
+// RenameAccount renames an account by moving its token file and updating active account if needed.
+func (m *Manager) RenameAccount(oldName, newName string) error {
+	oldPath := m.TokenPathForAccount(oldName)
+	newPath := m.TokenPathForAccount(newName)
+
+	if _, err := os.Stat(oldPath); os.IsNotExist(err) {
+		return fmt.Errorf("account %q not found", oldName)
+	}
+
+	if _, err := os.Stat(newPath); err == nil {
+		return fmt.Errorf("account %q already exists", newName)
+	}
+
+	if err := os.Rename(oldPath, newPath); err != nil {
+		return fmt.Errorf("failed to rename account: %w", err)
+	}
+
+	if m.ActiveAccount() == oldName {
+		_ = m.SetActiveAccount(newName)
+	}
+
+	return nil
+}
+
 // MigrateTokenIfNeeded moves legacy token.json to accounts/default.json.
 func (m *Manager) MigrateTokenIfNeeded() error {
 	oldPath := filepath.Join(m.configDir, "token.json")

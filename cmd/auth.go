@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/techinpark/ga-cli/internal/auth"
@@ -38,8 +41,42 @@ func newAuthLoginCmd() *cobra.Command {
 				return fmt.Errorf("failed to migrate token: %w", err)
 			}
 
+			accountSpecified := cmd.Flag("account").Changed
+
+			if mgr.IsLoggedInAs(account) {
+				fmt.Fprintf(cmd.OutOrStdout(), "Account %q is already logged in.\n", account)
+				fmt.Fprintf(cmd.OutOrStdout(), "Logging in again will overwrite the existing token.\n")
+				fmt.Fprintf(cmd.OutOrStdout(), "To add a different Google account, use: ga auth login --account <name>\n\n")
+				fmt.Fprint(cmd.OutOrStdout(), "Continue? [y/N]: ")
+
+				reader := bufio.NewReader(os.Stdin)
+				input, _ := reader.ReadString('\n')
+				input = strings.TrimSpace(strings.ToLower(input))
+				if input != "y" && input != "yes" {
+					fmt.Fprintln(cmd.OutOrStdout(), "Cancelled.")
+					return nil
+				}
+			}
+
 			if err := mgr.Login(cmd.Context(), account); err != nil {
 				return err
+			}
+
+			// --account 미지정 시 로그인 후 이름 지정 기회 제공
+			if !accountSpecified && account == "default" {
+				fmt.Fprint(cmd.OutOrStdout(), "\nGive this account a name (enter to keep \"default\"): ")
+				reader := bufio.NewReader(os.Stdin)
+				input, _ := reader.ReadString('\n')
+				input = strings.TrimSpace(input)
+
+				if input != "" && input != "default" {
+					// default 토큰을 새 이름으로 이동
+					if err := mgr.RenameAccount("default", input); err != nil {
+						fmt.Fprintf(cmd.ErrOrStderr(), "warning: failed to rename account: %v\n", err)
+					} else {
+						account = input
+					}
+				}
 			}
 
 			fmt.Fprintf(cmd.OutOrStdout(), "Logged in as account %q\n", account)
