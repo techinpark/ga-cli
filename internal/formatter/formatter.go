@@ -25,6 +25,7 @@ type Formatter interface {
 	FormatCountries(w io.Writer, title string, records []model.CountryRecord) error
 	FormatPlatforms(w io.Writer, title string, records []model.PlatformRecord) error
 	FormatRealtime(w io.Writer, title string, report *model.RealtimeReport) error
+	FormatCompare(w io.Writer, report *model.CompareReport) error
 }
 
 // New creates a Formatter for the given format.

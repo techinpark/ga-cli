@@ -224,3 +224,39 @@ func (f *tableFormatter) FormatRealtime(w io.Writer, title string, report *model
 	}
 	return nil
 }
+
+func (f *tableFormatter) FormatCompare(w io.Writer, report *model.CompareReport) error {
+	fmt.Fprintf(w, "\n%s - Comparison Report\n", strings.ToUpper(report.PropertyName))
+
+	if len(report.DayOverDay) > 0 {
+		fmt.Fprintf(w, "\nDay over Day (Today vs Yesterday)\n\n")
+		headers := []string{"METRIC", "TODAY", "YESTERDAY", "CHANGE"}
+		rows := make([][]string, len(report.DayOverDay))
+		for i, r := range report.DayOverDay {
+			rows[i] = []string{
+				r.Metric,
+				formatNumber64(r.Current),
+				formatNumber64(r.Previous),
+				formatPercent(r.ChangePercent),
+			}
+		}
+		renderTable(w, headers, rows)
+	}
+
+	if len(report.WeekOverWeek) > 0 {
+		fmt.Fprintf(w, "\nWeek over Week (This Week vs Last Week)\n\n")
+		headers := []string{"METRIC", "THIS WEEK", "LAST WEEK", "CHANGE"}
+		rows := make([][]string, len(report.WeekOverWeek))
+		for i, r := range report.WeekOverWeek {
+			rows[i] = []string{
+				r.Metric,
+				formatNumber64(r.Current),
+				formatNumber64(r.Previous),
+				formatPercent(r.ChangePercent),
+			}
+		}
+		renderTable(w, headers, rows)
+	}
+
+	return nil
+}

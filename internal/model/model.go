@@ -57,3 +57,25 @@ type RealtimeEvent struct {
 	EventName  string `json:"event_name"`
 	EventCount int    `json:"event_count"`
 }
+
+// MetricsSummary represents aggregated metrics for a date range.
+type MetricsSummary struct {
+	ActiveUsers int64 `json:"active_users"`
+	Events      int64 `json:"events"`
+	Sessions    int64 `json:"sessions"`
+}
+
+// CompareRecord represents a metric comparison between two periods.
+type CompareRecord struct {
+	Metric        string  `json:"metric"`
+	Current       int64   `json:"current"`
+	Previous      int64   `json:"previous"`
+	ChangePercent float64 `json:"change_percent"`
+}
+
+// CompareReport represents a full comparison report.
+type CompareReport struct {
+	PropertyName string          `json:"property_name"`
+	DayOverDay   []CompareRecord `json:"day_over_day"`
+	WeekOverWeek []CompareRecord `json:"week_over_week"`
+}

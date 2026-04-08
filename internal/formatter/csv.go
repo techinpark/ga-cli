@@ -117,3 +117,27 @@ func (f *csvFormatter) FormatRealtime(w io.Writer, _ string, report *model.Realt
 	}
 	return writeCSV(w, headers, rows)
 }
+
+func (f *csvFormatter) FormatCompare(w io.Writer, report *model.CompareReport) error {
+	headers := []string{"period", "metric", "current", "previous", "change_percent"}
+	var rows [][]string
+	for _, r := range report.DayOverDay {
+		rows = append(rows, []string{
+			"day",
+			r.Metric,
+			strconv.FormatInt(r.Current, 10),
+			strconv.FormatInt(r.Previous, 10),
+			strconv.FormatFloat(r.ChangePercent, 'f', 1, 64),
+		})
+	}
+	for _, r := range report.WeekOverWeek {
+		rows = append(rows, []string{
+			"week",
+			r.Metric,
+			strconv.FormatInt(r.Current, 10),
+			strconv.FormatInt(r.Previous, 10),
+			strconv.FormatFloat(r.ChangePercent, 'f', 1, 64),
+		})
+	}
+	return writeCSV(w, headers, rows)
+}

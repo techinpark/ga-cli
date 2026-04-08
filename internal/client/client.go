@@ -18,4 +18,5 @@ type DataClient interface {
 	GetCountries(ctx context.Context, propertyID string, days int) ([]model.CountryRecord, error)
 	GetPlatforms(ctx context.Context, propertyID string, days int) ([]model.PlatformRecord, error)
 	GetRealtime(ctx context.Context, propertyID string) (*model.RealtimeReport, error)
+	GetMetricsSummary(ctx context.Context, propertyID string, startDate string, endDate string) (*model.MetricsSummary, error)
 }

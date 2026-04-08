@@ -49,3 +49,7 @@ func (f *jsonFormatter) FormatPlatforms(w io.Writer, _ string, records []model.P
 func (f *jsonFormatter) FormatRealtime(w io.Writer, _ string, report *model.RealtimeReport) error {
 	return writeJSON(w, report)
 }
+
+func (f *jsonFormatter) FormatCompare(w io.Writer, report *model.CompareReport) error {
+	return writeJSON(w, report)
+}

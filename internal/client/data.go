@@ -312,6 +312,51 @@ func (c *dataClient) GetRealtime(ctx context.Context, propertyID string) (*model
 	return report, nil
 }
 
+// GetMetricsSummary returns aggregated metrics (activeUsers, eventCount, sessions) for a date range.
+func (c *dataClient) GetMetricsSummary(ctx context.Context, propertyID string, startDate string, endDate string) (*model.MetricsSummary, error) {
+	req := &analyticsdata.RunReportRequest{
+		DateRanges: []*analyticsdata.DateRange{
+			{StartDate: startDate, EndDate: endDate},
+		},
+		Metrics: []*analyticsdata.Metric{
+			{Name: "activeUsers"},
+			{Name: "eventCount"},
+			{Name: "sessions"},
+		},
+	}
+
+	resp, err := c.service.Properties.RunReport(propertyResource(propertyID), req).Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to run metrics summary report: %w", err)
+	}
+
+	summary := &model.MetricsSummary{}
+
+	if len(resp.Rows) > 0 {
+		row := resp.Rows[0]
+
+		activeUsers, err := strconv.ParseInt(row.MetricValues[0].Value, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse activeUsers: %w", err)
+		}
+		summary.ActiveUsers = activeUsers
+
+		events, err := strconv.ParseInt(row.MetricValues[1].Value, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse eventCount: %w", err)
+		}
+		summary.Events = events
+
+		sessions, err := strconv.ParseInt(row.MetricValues[2].Value, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse sessions: %w", err)
+		}
+		summary.Sessions = sessions
+	}
+
+	return summary, nil
+}
+
 // formatGADate converts GA date format "20260401" to "2026-04-01".
 func formatGADate(gaDate string) (string, error) {
 	t, err := time.Parse("20060102", gaDate)
